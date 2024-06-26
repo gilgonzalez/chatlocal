@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local Chat GPT</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont,
+        'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans',
+        'Helvetica Neue', sans-serif;
+      background-color: #f0f0f0;
+      display: grid;
+      place-content: center;
+      height: 100vh;
+      height: 100dvh;
+    }
+
+    main {
+      width: 400px;
+      max-width: 100%;
+      height: 70vh;
+
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      margin-bottom: 16px;
+      overflow-y: auto;
+      scroll-behavior: smooth;
+    }
+
+    ul {
+      display: flex;
+      flex-direction: column;
+      list-style: none;
+      padding: 0px;
+      margin: 0px;
+    }
+
+    .message {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin: 4px 0;
+      padding: 4px 0;
+
+      >span {
+        width: 36px;
+        height: 36px;
+        padding: 4px;
+        background-color: #eee;
+        font-size: 12px;
+        font-weight: 500;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 100%;
+      }
+
+      >p {
+        border-radius: 10px;
+        padding: 6px 10px;
+        margin-top: 4px;
+
+      }
+
+      &.user {
+        align-self: flex-end;
+        align-items: flex-end;
+
+        span {
+          background-color: rgb(98, 98, 251);
+          color: white;
+        }
+
+        p {
+          background-color: rgb(201, 201, 252);
+
+        }
+      }
+
+      &.bot {
+        align-self: flex-start;
+
+        span {
+          background-color: #070;
+          color: white;
+        }
+
+        p {
+          background-color: rgb(183, 255, 183);
+        }
+      }
+
+    }
+
+    form {
+      display: flex;
+
+      input {
+        border-radius: 50px;
+        flex-grow: 1;
+        border: 0px;
+        padding: 8px;
+        margin-right: 8px;
+        border: 1px solid #aaa;
+      }
+    }
+
+    button {
+      background-color: #097;
+      border: 0;
+      color: white;
+      border-radius: 20px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: background .5s ease;
+
+      &[disabled] {
+        background-color: #ccc;
+        opacity: .6;
+        pointer-events: none;
+      }
+
+      &:hover {
+        background-color: #075;
+      }
+    }
+    small {
+      font-size: 10px;
+      color: #555;
+      position: fixed;
+      bottom : 10px;
+      left: 0;
+      right: 0;
+      margin: auto;
+      width: 400px;
+    }
+  </style>
+  <script type="module">
+
+    import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";  
+
+    
+    const $ = el => document.querySelector(el)
+    
+    const $form = $("form")
+    const $input = $("input")
+    const $template = $("#message-template")
+    const $messages = $('ul')
+    const $container = $('main')
+    const $button = $('button')
+    const $small = $('small')
+    let messages = [];
+    
+    const SELECTED_MODEL = "gemma-2b-it-q4f32_1-MLC"
+
+    const engine = await CreateMLCEngine(
+      SELECTED_MODEL,
+      {
+        initProgressCallback : (info) => {
+          $small.textContent = `${info.text}`
+          if(info.progress === 1) {
+            $button.removeAttribute('disabled')
+          }
+        }
+      }
+    ) 
+
+    $form.addEventListener('submit', async (event) => {
+      event.preventDefault()
+      const messageText = $input.value.trim()
+      if (!messageText || messageText === '') return
+
+      if (messageText !== '') {
+        $input.value = ''
+      }
+      addMessage(messageText, 'user')
+
+      const userMessage = {
+        role:'user',
+        content: messageText
+      }
+      messages.push(userMessage)
+      console.log(messages)
+      const reply = await engine.chat.completions.create({
+        messages 
+      })
+      console.log(reply)
+      const iaMessage = reply.choices[0].message
+      console.log(iaMessage)
+      messages.push(iaMessage)
+      addMessage(iaMessage.content, 'bot')
+      $button.setAttribute('disabled', false)
+    })
+    function addMessage(text, sender) {
+      //clonar el template
+      const clonedTemplate = $template.content.cloneNode(true)
+
+      const $newMessage = clonedTemplate.querySelector('.message')
+      const $who = $newMessage.querySelector('span')
+      const $text = $newMessage.querySelector('p')
+
+      $text.textContent = text
+      $who.textContent = sender === 'bot' ? 'IA' : "Tú"
+      $newMessage.classList.add(sender)
+
+      $messages.appendChild($newMessage)
+      //actualizar el scroll para ir bajando
+      $container.scrollTop = $container.scrollHeight
+
+      $button.setAttribute('disabled', true)
+    }
+
+
+
+  </script>
+</head>
+
+<body>
+  <main>
+    <ul>
+      <!-- <li class="message bot">
+        <span>IA</span>
+        <p>Respuesta del Bot</p>
+      </li>
+      <li class="message user">
+        <span>User</span>
+        <p>Mensaje corto de usuario</p>
+      </li>
+      <li class="message user">
+        <span>User</span>
+        <p>Mensaje largo de usuario : Lorem ipsum dolor sit amet consectetur adipisicing elit. Perferendis, nam unde.
+          Aliquid asperiores minima
+          distinctio accusantium ad dolorem blanditiis saepe doloribus facere reiciendis voluptatibus culpa ab
+          cupiditate sit,
+          odio ipsam.</p>
+      </li> -->
+    </ul>
+
+  </main>
+
+  <form action="">
+    <input type="text" placeholder="Escribe tu mensaje ...">
+    <button disabled>Send</button>
+  </form>
+  <small>&nbsp;</small>
+
+  <template id="message-template">
+    <li class="message">
+      <span></span>
+      <p></p>
+    </li>
+  </template>
+</body>
+
+</html>
